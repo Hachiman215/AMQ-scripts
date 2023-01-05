@@ -73,10 +73,14 @@ function createMuteWindows() {
                         .click(function () {
                             checkGuessTime();
                             let msg="MuteScript is ";
-                            if($("#slIsActive").prop("checked")){
+                            if(isActive){
                                 msg+="ON";
+                                document.getElementById("slMuteDuration").disabled=true;
+                                document.getElementById("slMuteDelay").disabled=true;
                             }else{
                                 msg+="OFF";
+                                document.getElementById("slMuteDuration").disabled=false;
+                                document.getElementById("slMuteDelay").disabled=false;
                             }
                             printMsg(msg);
                         })
@@ -89,7 +93,12 @@ function createMuteWindows() {
                 .append($(`<div class="customCheckbox" style="margin-left: 30px"></div>`)
                     .append($(`<input id="slIsRandom" type="checkbox">`)
                         .click(function () {
-                            ifRandom();
+                            if(isActive){
+                                $("#slIsRandom").prop('checked', !$("#slIsRandom").prop('checked'));
+                            }else{
+                                ifRandom();
+                            }
+
                         })
                     )
                     .append(`<label for="slIsRandom"><i class="fa fa-check" aria-hidden="true"></i></label>`)
@@ -189,7 +198,6 @@ function setup() {
     createMuteWindows();
     new MutationObserver((mutationRecord) => {
         if (mutationRecord[0].target.hasAttribute('disabled')) return;
-        isActive = $("#slIsActive").prop("checked");
         if (isActive && durat >= 0){
             volumeController.setMuted(true);
             volumeController.adjustVolume();
@@ -206,7 +214,6 @@ function setup() {
     }).observe(answerInput, {attributes: true});
 
     new MutationObserver((mutationRecordArray) => {
-        isActive = $("#slIsActive").prop("checked");
         if(isActive){
             let currVol = muteDevice.className;
             if(currVol !="fa fa-volume-off" && isGuessing){
@@ -234,8 +241,6 @@ function setup() {
     gameChatInput.addEventListener("keydown", keydownfunction);
 
 new Listener("guess phase over", () => {
-    isActive = $("#slIsActive").prop("checked");
-    isRandom = $("#slIsRandom").prop("checked");
     isGuessing=false;
     if(isActive){
         volumeController.setMuted(false);
@@ -249,7 +254,6 @@ new Listener("guess phase over", () => {
 }).bindListener()
 
 new Listener("play next song", data => {
-    isActive = $("#slIsActive").prop("checked");
     if(isActive){
         if (muteDevice.className === "fa fa-volume-off") { muteDevice.click() };
         isGuessing=true;
