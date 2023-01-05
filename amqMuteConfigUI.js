@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         AMQ is muted during a specified or random time
-// @namespace    http://tampermonkey.net/
+// @name         AMQ Mute Config UI
+// @namespace    https://github.com/Hachiman215/AMQ-scripts
 // @version      1.0
 // @description  Only have audio during "x" seconds at specified "y"th second
 // @author       Hachiman215
@@ -14,23 +14,34 @@
 /* Usage:
 
 write in chat: /muteconfig
+inputs:
+    duration: length of song that will be played (in seconds)
+    delay: sample starts in this second
+options:
+    random: sample starts in any second except last 4s
+    on: turn on/off the script
+
+Considerations:
+    - Pls report any problem to Hachiman#9758.
+    - Using the script with random guesstime is not possible.
+    - Using the script with (delay + duration) longer than guesstime is not possible.
+    - Setting negative inputs is not possible
+
 Thx to BobTheSheriff, xSardine, Nyamu and Minigamer42 as I mostly looked at their scripts to figure out how to write this
 */
-
-
 let command = '/muteconfig';
 let durat = 0;
 let delay = 0;
-let isCheating = false;
+let isGuessing = false;
 let isActive = false;
 let isRandom = false;
-let cont= 0;
+let count= 0;
 let configureMuteWindow
 let keydownfunction
 let answerInput = document.getElementById('qpAnswerInput');
 let muteDevice = document.getElementById("qpVolumeIcon");
 
-
+let messageinChat=true;
 
 function createMuteWindows() {
 	configureMuteWindow = new AMQWindow({
@@ -84,7 +95,6 @@ function createMuteWindows() {
                     .append(`<label for="slIsRandom"><i class="fa fa-check" aria-hidden="true"></i></label>`)
                 )
                 .append(`<div style="margin-left: 20px;">Random</div>`)
-
             )
         )
         .append($(`<div class="slMuteInputs"></div>`)
@@ -96,13 +106,12 @@ function createMuteWindows() {
                         if(parseFloat(durat)<0){
                             durat=document.getElementById("slMuteDuration").value=0;
                         }
-                        let max_str=document.getElementById("mhPlayLength").value
+                        let max_str=document.getElementById("mhPlayLength").value;
                         if(parseFloat(durat)>parseFloat(max_str)){
                             durat=document.getElementById("slMuteDuration").value=max_str;
                         }
                         checkGuessTime();
                     })
-
                 )
             )
             .append($(`<div class="slInputContainer"></div>`)
@@ -113,20 +122,19 @@ function createMuteWindows() {
                         if(parseFloat(delay)<0){
                             delay=document.getElementById("slMuteDelay").value=0;
                         }
-                        let max_str=document.getElementById("mhPlayLength").value
+                        let max_str=document.getElementById("mhPlayLength").value;
                         if(parseFloat(delay)>parseFloat(max_str)){
                             delay=document.getElementById("slMuteDelay").value=max_str;
                         }
                         checkGuessTime();
                     })
-
                 )
             )
         );
 }
 
 function printMsg(message){
-    if (quiz.gameMode !== "Ranked") {
+    if (quiz.gameMode !== "Ranked" && messageinChat) {
         let oldMessage = gameChat.$chatInputField.val();
         gameChat.$chatInputField.val(message);
         gameChat.sendMessage();
@@ -141,7 +149,6 @@ function getRandomIntInclusive(min, max) {
 }
 
 function ifRandom() {
-
     isRandom = $("#slIsRandom").prop("checked");
     let max_int=parseInt(document.getElementById("mhPlayLength").value);
     if(isRandom){
@@ -163,13 +170,16 @@ function checkGuessTime() {
     let max_str=document.getElementById("mhPlayLength").value;
     document.getElementById("slMuteDuration").max=max_str;
     document.getElementById("slMuteDelay").max=max_str;
+    let rGuessTime= document.getElementById("mhPlayLengthRandomSwitch").className == "switchContainer slider-track active";
     let max_val=parseInt(max_str,10);
     if (isActive){
-        let message = "";
         let sum=parseFloat(delay)+parseFloat(durat);
         if (sum>max_val){
-            message += "Mute Inputs are too high"
-            printMsg(message);
+            printMsg("Mute Inputs are too high");
+            document.getElementById("slIsActive").checked=false;
+        }
+        if(rGuessTime){
+            printMsg("Script Not Usable with Random Guess Time");
             document.getElementById("slIsActive").checked=false;
         }
     }
@@ -177,7 +187,7 @@ function checkGuessTime() {
 
 function setup() {
     createMuteWindows();
-    new MutationObserver((mutationRecord, mutationObserver) => {
+    new MutationObserver((mutationRecord) => {
         if (mutationRecord[0].target.hasAttribute('disabled')) return;
         isActive = $("#slIsActive").prop("checked");
         if (isActive && durat >= 0){
@@ -193,22 +203,21 @@ function setup() {
                 }, (durat) * 1000);
             }, delay * 1000);
         }
-
-
     }).observe(answerInput, {attributes: true});
 
-    new MutationObserver((mutationRecord, mutationObserver) => {
+    new MutationObserver((mutationRecordArray) => {
         isActive = $("#slIsActive").prop("checked");
         if(isActive){
-            cont+=1;
-            if(isCheating){ null; }
-            else{
-                if(cont>4){
-                    isCheating=true;
+            let currVol = muteDevice.className;
+            if(currVol !="fa fa-volume-off" && isGuessing){
+                count+=1;
+                if(count==2){
+                    printMsg(" I'M A CHEATER - UNMUTED");
                 }
             }
+            //printMsg(mutationRecord.oldValue);
         }
-    }).observe(muteDevice, {attributes: true});
+    }).observe(muteDevice, {attributes: true, attributeOldValue: true,});
 
 
     var gameChatInput = document.getElementById("gcInput");
@@ -227,6 +236,7 @@ function setup() {
 new Listener("guess phase over", () => {
     isActive = $("#slIsActive").prop("checked");
     isRandom = $("#slIsRandom").prop("checked");
+    isGuessing=false;
     if(isActive){
         volumeController.setMuted(false);
         volumeController.adjustVolume();
@@ -238,14 +248,13 @@ new Listener("guess phase over", () => {
     }
 }).bindListener()
 
-new Listener("answer results", (results) => {
-     isActive = $("#slIsActive").prop("checked");
-     if(isActive && isCheating){
-         printMsg(" I'M A CHEATER - UNMUTED");
-     }
-    // reset for next round
-    isCheating = false;
-    cont=0;
+new Listener("play next song", data => {
+    isActive = $("#slIsActive").prop("checked");
+    if(isActive){
+        if (muteDevice.className === "fa fa-volume-off") { muteDevice.click() };
+        isGuessing=true;
+        count=0;
+    }
 }).bindListener()
 
 new Listener("Room Settings Changed", (changes) => {
