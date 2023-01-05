@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AMQ Mute Config UI
 // @namespace    https://github.com/Hachiman215/AMQ-scripts
-// @version      1.0
+// @version      1.1
 // @description  Only have audio during "x" seconds at specified "y"th second
 // @author       Hachiman215
 // @match        https://animemusicquiz.com/*
