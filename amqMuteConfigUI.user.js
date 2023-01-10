@@ -147,7 +147,14 @@ function createMuteWindows() {
 }
 
 function printMsg(message){
-    if (quiz.gameMode !== "Ranked" && messageinChat) {
+    if((message=="MuteScript is OFF" || message == "MuteScript is OFF") && quiz.gameMode !== "Ranked"){
+        let oldMessage = gameChat.$chatInputField.val();
+        gameChat.$chatInputField.val(message);
+        gameChat.sendMessage();
+        gameChat.$chatInputField.val(oldMessage);
+        return;
+    }
+    if (quiz.gameMode !== "Ranked" && messageinChat && !quiz.isSpectator) {
         let oldMessage = gameChat.$chatInputField.val();
         gameChat.$chatInputField.val(message);
         gameChat.sendMessage();
