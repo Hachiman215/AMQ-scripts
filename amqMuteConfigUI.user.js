@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AMQ Mute Config UI
 // @namespace    https://github.com/Hachiman215/AMQ-scripts
-// @version      1.1
+// @version      1.2
 // @description  Only have audio during "x" seconds at specified "y"th second
 // @author       Hachiman215
 // @match        https://animemusicquiz.com/*
@@ -32,10 +32,8 @@ Thx to BobTheSheriff, xSardine, Nyamu and Minigamer42 as I mostly looked at thei
 let command = '/muteconfig';
 let durat = 0;
 let delay = 0;
-let isGuessing = false;
-let isActive = false;
-let isRandom = false;
 let count= 0;
+let curr_delay = 0;
 let configureMuteWindow
 let keydownfunction
 let answerInput = document.getElementById('qpAnswerInput');
@@ -73,7 +71,7 @@ function createMuteWindows() {
                         .click(function () {
                             checkGuessTime();
                             let msg="MuteScript is ";
-                            if(isActive){
+                            if($("#slIsActive").prop("checked")){
                                 msg+="ON";
                                 document.getElementById("slMuteDuration").disabled=true;
                                 document.getElementById("slMuteDelay").disabled=true;
@@ -93,10 +91,16 @@ function createMuteWindows() {
                 .append($(`<div class="customCheckbox" style="margin-left: 30px"></div>`)
                     .append($(`<input id="slIsRandom" type="checkbox">`)
                         .click(function () {
-                            if(isActive){
+                            if($("#slIsActive").prop("checked")){
                                 $("#slIsRandom").prop('checked', !$("#slIsRandom").prop('checked'));
                             }else{
-                                ifRandom();
+                                if($("#slIsRandom").prop("checked")){
+                                    $(".slInputDelay").hide();
+                                    $(".slInputLabel2").hide();
+                                }else{
+                                    $(".slInputDelay").show();
+                                    $(".slInputLabel2").show();
+                                }
                             }
 
                         })
@@ -157,31 +161,26 @@ function getRandomIntInclusive(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function ifRandom() {
-    isRandom = $("#slIsRandom").prop("checked");
+function getValDelay() {
     let max_int=parseInt(document.getElementById("mhPlayLength").value);
-    if(isRandom){
-        $(".slInputDelay").hide();
-        $(".slInputLabel2").hide();
+    if($("#slIsRandom").prop("checked")){
         if(parseFloat(durat)<=5){
-            delay=getRandomIntInclusive(0,max_int-5);
+            return(getRandomIntInclusive(0,(max_int*1000)-5000));
         }else{
-            delay=getRandomIntInclusive(0,max_int-parseInt(durat));
+            return(getRandomIntInclusive(0,max_int*1000-parseFloat(durat)*1000));
         }
     }else{
-        $(".slInputDelay").show();
-        $(".slInputLabel2").show();
+        return(delay*1000);
     }
 }
 
 function checkGuessTime() {
-    isActive = $("#slIsActive").prop("checked");
     let max_str=document.getElementById("mhPlayLength").value;
     document.getElementById("slMuteDuration").max=max_str;
     document.getElementById("slMuteDelay").max=max_str;
     let rGuessTime= document.getElementById("mhPlayLengthRandomSwitch").className == "switchContainer slider-track active";
     let max_val=parseInt(max_str,10);
-    if (isActive){
+    if ($("#slIsActive").prop("checked")){
         let sum=parseFloat(delay)+parseFloat(durat);
         if (sum>max_val){
             printMsg("Mute Inputs are too high");
@@ -194,14 +193,15 @@ function checkGuessTime() {
     }
 }
 
+
 function setup() {
     createMuteWindows();
     new MutationObserver((mutationRecord) => {
         if (mutationRecord[0].target.hasAttribute('disabled')) return;
-        if (isActive && durat >= 0){
+        if ($("#slIsActive").prop("checked") && durat >= 0){
             volumeController.setMuted(true);
             volumeController.adjustVolume();
-            ifRandom();
+            curr_delay=getValDelay()
             let timer = setTimeout(() => {
                 volumeController.setMuted(false);
                 volumeController.adjustVolume();
@@ -209,14 +209,14 @@ function setup() {
                     volumeController.setMuted(true);
                     volumeController.adjustVolume();
                 }, (durat) * 1000);
-            }, delay * 1000);
+            }, curr_delay);
         }
     }).observe(answerInput, {attributes: true});
 
     new MutationObserver((mutationRecordArray) => {
-        if(isActive){
+        if($("#slIsActive").prop("checked")){
             let currVol = muteDevice.className;
-            if(currVol !="fa fa-volume-off" && isGuessing){
+            if(currVol !="fa fa-volume-off" && !answerInput.disabled){
                 count+=1;
                 if(count==2){
                     printMsg(" I'M A CHEATER - UNMUTED");
@@ -241,22 +241,20 @@ function setup() {
     gameChatInput.addEventListener("keydown", keydownfunction);
 
 new Listener("guess phase over", () => {
-    isGuessing=false;
-    if(isActive){
+    if($("#slIsActive").prop("checked")){
         volumeController.setMuted(false);
         volumeController.adjustVolume();
-        if(isRandom){
+        if($("#slIsRandom").prop("checked")){
             let currentSong = document.getElementById("qpCurrentSongCount").innerHTML;
-            let message = "Song " +currentSong + ": sound in sec " + delay;
+            let message = "Song " +currentSong + ": sound in sec " + (curr_delay/1000).toString();
             printMsg(message);
         }
     }
 }).bindListener()
 
 new Listener("play next song", data => {
-    if(isActive){
+    if($("#slIsActive").prop("checked")){
         if (muteDevice.className === "fa fa-volume-off") { muteDevice.click() };
-        isGuessing=true;
         count=0;
     }
 }).bindListener()
